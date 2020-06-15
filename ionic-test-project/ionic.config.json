@@ -1,7 +1,0 @@
-{
-  "name": "HelloWorld-native-toast",
-  "integrations": {
-    "cordova": {}
-  },
-  "type": "angular"
-}
