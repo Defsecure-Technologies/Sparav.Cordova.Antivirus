@@ -1,7 +1,7 @@
 {
   "name": "io.electrosoft.helloworld",
   "version": "0.0.1",
-  "description": "Cordova custom plugin for toast",
+  "description": "",
   "cordova": {
     "id": "io.electrosoft.helloworld",
     "platforms": [
@@ -12,6 +12,6 @@
     "ecosystem:cordova",
     "cordova-android"
   ],
-  "author": "martin chuka",
+  "author": "",
   "license": "ISC"
 }
