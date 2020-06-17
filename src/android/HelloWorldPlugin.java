@@ -23,7 +23,7 @@ public class HelloWorldPlugin extends CordovaPlugin {
     }
 
     public void nativeToast(){
-        Toast.makeText(webView.getContext(), "Hello World Cordova Plugin", Toast.LENGTH_SHORT).show();
+        Toast.makeText(webView.getContext(), "GG dude!", Toast.LENGTH_SHORT).show();
     }
 
 }
