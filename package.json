@@ -1,7 +1,7 @@
 {
   "name": "io.electrosoft.helloworld",
-  "version": "0.0.1",
-  "description": "Cordova custom plugin for toast",
+  "version": "0.0.2",
+  "description": "Cordova custom plugin for toast Dil",
   "cordova": {
     "id": "io.electrosoft.helloworld",
     "platforms": [
