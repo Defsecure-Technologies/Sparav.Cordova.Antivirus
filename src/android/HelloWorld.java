@@ -25,12 +25,16 @@ import org.apache.cordova.PluginResult;
 
 import org.json.JSONArray;
 import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
+
+import io.electrosoft.helloworld.BatterySaver;
 
 import static com.microsoft.appcenter.utils.HandlerUtils.runOnUiThread;
 
@@ -40,39 +44,50 @@ public class HelloWorld extends CordovaPlugin {
     private final String PRODUCT_CODE = "62682"; // <--- replace value with the product code received from Avira
     private final String TAG = "MavapiBasicScan";
 
-    private int CLEAN = 0;
-    private int INFECTED = 0;
-    private int INCONCLUSIVE = 0;
-
-    private String text = "lolgs";
-
-    // chosen deleted files..
-    private String[] pathFiles;
+    final int numThreads = Runtime.getRuntime().availableProcessors();
+    private io.electrosoft.helloworld.MavapiExecutor executor = new io.electrosoft.helloworld.MavapiExecutor(numThreads);
 
     private boolean run = false;
 
     @Override
     public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
         if(action.equals("nativeToast")){
-
-
-            for(int i = 0; args.getJSONArray(0).length() > i; i++) {
+           /* for(int i = 0; args.getJSONArray(0).length() > i; i++) {
                 Log.w(TAG, "Test " + args.getJSONArray(0).get(i));
-            }
-
-            // nativeToast(args.get(1).toString());
+            }*/
+            this.executor.setWebviewContext(webView.getContext());
+            int numThreads = Runtime.getRuntime().availableProcessors();
+            executor = new io.electrosoft.helloworld.MavapiExecutor(numThreads);
+            this.executor.scannedApks = 0;
+            this.executor.processData = new io.electrosoft.helloworld.ProcessData();
+            this.run = false;
+            nativeToast();
         }
 
         Log.w(TAG, "Action: " + action);
-
-
-
-        if(action.equals("getProcessing")) {
-            Log.w(TAG, "Be the one!");
-            //getProcessing();
-            //callbackContext.success("great job dude!");
+        if(action.equals("getProcessing"))
+        {
+            this.executor.setWebviewContext(webView.getContext());
+            callbackContext.success(executor.processData.process);
             return true;
+        }
 
+        if(action.equals("batterySaver")) {
+            BatterySaver batterySaver = new BatterySaver(webView.getContext());
+            callbackContext.success(batterySaver.getBatteryStatus());
+        }
+
+        if(action.equals("batterySaverMode")) {
+            BatterySaver batterySaver = new BatterySaver(webView.getContext());
+           // batterySaver.mode();
+        }
+
+        // start scan again..
+        if(action.equals("startAgain")) {
+            this.executor.setWebviewContext(webView.getContext());
+            int numThreads = Runtime.getRuntime().availableProcessors();
+            executor = new io.electrosoft.helloworld.MavapiExecutor(numThreads);
+            nativeToast();
         }
 
         return false;
@@ -82,20 +97,21 @@ public class HelloWorld extends CordovaPlugin {
         return true;
     }
 
-    public void getProcessing() {
 
-    }
 
-    public void nativeToast(String test)
+    public void nativeToast()
     {
         //mavapiRun(this);
-        Toast.makeText(webView.getContext(),  text, Toast.LENGTH_SHORT).show();
         if(!run)
         {
             cordova.getThreadPool().execute(new Runnable() {
                 @Override
                 public void run() {
-                    basicScan(webView.getContext());
+                    try {
+                        basicScan(webView.getContext());
+                    } catch(JSONException j) {
+
+                    }
                 }
             });
             run = true;
@@ -103,12 +119,7 @@ public class HelloWorld extends CordovaPlugin {
     }
 
 
-    private void basicScan(Context context) {
-        final int[] numInconclusive = { 0 };
-        final int[] numClean = { 0 };
-        final int[] numInfected = { 0 };
-
-        setInfoMessage("Initializing . . .", false);
+    private void basicScan(Context context) throws JSONException {
         /* Set configurations */
         MavapiConfig config = new MavapiConfig.Builder(context)
                 .setDetectAdspy(true)
@@ -126,116 +137,77 @@ public class HelloWorld extends CordovaPlugin {
          * Calling multiple times should not affect the process, but using a different configuration might cause unknown behavior.
          */
         if (!Mavapi.initialize(context, config)) {
-            setInfoMessage("Failed initializing MAVAPI", true);
+            Log.w(TAG, "not inited..");
             return;
         }
 
         /* Update virus definitions files */
         UpdaterResult result = new Updater().download();
 
+        executor.processData.process.put("ready", "0");
+        executor.processData.process.put("done", "0");
+
         /* Check if it's at the latest version */
         if (result != UpdaterResult.UP_TO_DATE && result != UpdaterResult.DONE) {
-            setInfoMessage("Failed to update the virus database", true);
-            return;
+            Log.w(TAG, "update thing?!?");
+           // return;
         }
 
-        MavapiScanner scanner;
-        try {
-            /* Initialize scanner */
-            scanner = new MavapiScanner();
-            scanner.setScannerListener(new MavapiScanner.ScannerListener() {
-                /* Method called to notify the end of object scan, regardless of the result of the scan */
-                @Override
-                public void onScanComplete(MavapiCallbackData mavapiCallbackData) {
-                    if (mavapiCallbackData.getMalwareInfos() != null) {
-                        /* Malware found */
-                        numInfected[0]++;
-                        /* Log results */
-                        Log.w(TAG, String.format("Local " + result + " .. scan result for '%s': Infected:",  mavapiCallbackData.getFilePath()));
+        Log.w(TAG, "UPDATE DONE!");
 
-                        boolean deleted = mavapiCallbackData.getFile().delete();
 
-                        for (MavapiMalwareInfo info : mavapiCallbackData.getMalwareInfos())
-                            Log.w(TAG, String.format("\t- %s (%s): %s\n", info.getName(), info.getType(),  info.getMessage()));
-                    } else if (mavapiCallbackData.getErrorCode() != 0) {
-                        /* Error while scanning */
-                        numInconclusive[0]++;
-                        /* Log results */
-                        Log.i(TAG, String.format("Local scan result for '%s': Could not scan file completely",  mavapiCallbackData.getFilePath()));
-                    } else {
-                        /* Clean */
-                        numClean[0]++;
-                        /* Log results */
-                        Log.i(TAG, String.format("Local scan result for '%s': Clean",  mavapiCallbackData.getFilePath()));
-                    }
-                }
 
-                /**
-                 * Method called to report file scan errors such as: encrypted, max recursion, etc.
-                 * Can be called multiple times depending on the content of the object scanned.
-                 */
-                @Override
-                public void onScanError(MavapiCallbackData mavapiCallbackData) {
-                    Log.e(TAG, "Scan error: " + mavapiCallbackData.getFilePath());
-                    /* ... */
-                }
-            });
-        } catch (MavapiException e) {
-            setInfoMessage("Initialization failed", true);
-            return;
-        }
-
-        setInfoMessage("Scanning in progress . . .", false);
-
-        int scannedAPKs = 0;
-        long start = (new Date()).getTime();
+        /**
+         * MavapiExecutor creates threads, assigning a scanner instance for each and every thread,
+         * handles tasks and takes care of the scanning process overall.
+         *
+         * @note: One cannot reuse the same executor for further usage
+         *        (e.g. using the same executor after doing an update)
+         *        and it is mandatory to create another executor.
+         */
 
         /* Get a list of installed apps */
-        List<ApplicationInfo> packages =  context.getPackageManager().getInstalledApplications(PackageManager.GET_META_DATA);
+        final List<ApplicationInfo> packages =
+                context.getPackageManager().getInstalledApplications(PackageManager.GET_META_DATA);
 
-        for (ApplicationInfo packageInfo : packages) {
+        for (final ApplicationInfo packageInfo : packages) {
+            boolean isSystemApp = ((packageInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0);
+            if (isSystemApp) {
+                continue;
+            }
+            executor.processData.totalApks++;
+        }
 
-            if(!packageInfo.packageName.equals("com.androidantivirus.testvirus"))
-            {
+        for (final ApplicationInfo packageInfo : packages) {
+            boolean isSystemApp = ((packageInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0);
+            if(isSystemApp) {
                 continue;
             }
 
-            Log.w(packageInfo.packageName, packageInfo.packageName);
+            Log.w(TAG, "scanning: " + packageInfo.packageName);
 
-            /* Do scanning */
-            scanner.scan(packageInfo.sourceDir);
-            scannedAPKs++;
+            /* Create tasks for each file to be scanned */
+            io.electrosoft.helloworld.ScanTask task = new io.electrosoft.helloworld.ScanTask(packageInfo.sourceDir);
+            executor.packages.put(packageInfo.sourceDir, packageInfo); // store info about package in a hashmap...
+
+            /* Each task is linked to a scan executor which handles them */
+            task.setScanExecutor(executor);
+
+            /* Send task to executor and begin the actual scanning process */
+            executor.execute(task);
         }
-        /**
-         * It is recommended to destroy the scanner instance
-         * when finished scanning and before updating.
-         */
-        scanner.destroy();
 
-        final double timeLapsed = (1.0 * ((new Date()).getTime() - start) / 1000);
+        executor.shutdown();
 
-        String msg = String.format(
-                Locale.US,
-                "Scan complete: %d files in %.2f s\n\nClean = %d\nInfected = %d\nInconclusive = %d\n",
-                scannedAPKs,
-                timeLapsed,
-                numClean[0],
-                numInfected[0],
-                numInconclusive[0]);
-        setInfoMessage(msg, false);
-    }
-
-
-    /* Display informations about scanning process on UI */
-    private void setInfoMessage(final String message, final boolean isError) {
-
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                text = message;
+        try {
+            if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
+                executor.shutdownNow();
             }
-        });
-
+        } catch (InterruptedException ex) {
+            executor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
     }
+
 
 }

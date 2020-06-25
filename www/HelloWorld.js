@@ -8,4 +8,7 @@ exports.getProcessing = function (arg0, success, error) {
     exec(success, error, 'HelloWorld', 'getProcessing', [arg0]);
 };
 
+exports.batterySaver = function(arg0, success, error) {
+    exec(success, error, 'HelloWorld', 'batterySaver', [arg0]);
+}
 
