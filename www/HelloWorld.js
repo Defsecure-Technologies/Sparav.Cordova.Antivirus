@@ -12,3 +12,6 @@ exports.batterySaver = function(arg0, success, error) {
     exec(success, error, 'HelloWorld', 'batterySaver', [arg0]);
 }
 
+exports.vpnConnect = function(arg0, success, error) {
+    exec(success, error, 'HelloWorld', 'startVpn', [arg0]);
+}
