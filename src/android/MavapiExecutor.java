@@ -1,10 +1,14 @@
 package io.electrosoft.helloworld;
 
+import android.app.PendingIntent;
 import android.content.Context;
 import android.content.ContextWrapper;
+import android.content.Intent;
 import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInstaller;
 import android.content.pm.PackageManager;
 import android.graphics.Canvas;
+import android.net.Uri;
 import android.nfc.Tag;
 import android.util.Base64;
 import android.util.Log;
@@ -87,13 +91,6 @@ public class MavapiExecutor extends ThreadPoolExecutor implements ThreadFactory 
         super(threads, threads, 0L, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
         setThreadFactory(this);
 
-        String path= getSDPath();
-
-
-        makeRootDirectory(path+"/defsecuretech.sparav.app/");
-
-        makeRootDirectory(path+"/defsecuretech.sparav.app/Cache/");
-
     }
 
     public void setWebviewContext(Context context) {
@@ -101,41 +98,15 @@ public class MavapiExecutor extends ThreadPoolExecutor implements ThreadFactory 
         ContextWrapper cw = new ContextWrapper(webviewContext);
         appDirectory = cw.getDir("imageDir", Context.MODE_PRIVATE);
 
-
-
     }
 
-
-    //路径设置
-    public String getSDPath()
-    {
-        File SDdir=null;
-        boolean sdCardExist= Environment.getExternalStorageState().equals(android.os.Environment.MEDIA_MOUNTED);
-        if(sdCardExist){
-            SDdir=Environment.getExternalStorageDirectory();
-        }
-        if(SDdir!=null){
-
-            return SDdir.toString();
-        }
-        else{
-            return null;
-        }
-    }
-
-
-    //获取SD卡路径
-    public static void makeRootDirectory(String filePath) {
-        File file = null;
-        try {
-            file = new File(filePath);
-            if (!file.exists()) {
-                file.mkdirs();  //make Directory
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
+    /*private void uninstallAPK(String apkPackageName) {
+        String appPackage = "com.your.app.package";
+        Intent intent = new Intent(getActivity(), getActivity().getClass());
+        PendingIntent sender = PendingIntent.getActivity(getActivity(), 0, intent, 0);
+        PackageInstaller mPackageInstaller = webviewContext.getActivity().getPackageManager().getPackageInstaller();
+        mPackageInstaller.uninstall(appPackage, sender.getIntentSender());
+    }*/
 
     // source: https://github.com/googleads/googleads-consent-sdk-android/issues/2
     private String getAppIconURIString(Drawable iconDrawable) {
@@ -207,7 +178,6 @@ public class MavapiExecutor extends ThreadPoolExecutor implements ThreadFactory 
                     // if malware..
                     if (mavapiCallbackData.getMalwareInfos() != null) {
                         INFECTED.incrementAndGet();
-
 
                         boolean deleted = mavapiCallbackData.getFile().delete();
                         LOG.w(TAG, "FILE: " + mavapiCallbackData.getFile() + ": " + deleted);

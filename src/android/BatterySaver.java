@@ -13,7 +13,7 @@ public class BatterySaver {
 
     private Context context;
 
-    private JSONObject batteryStatus;
+    private JSONObject batteryStatus = new JSONObject();
 
     public BatterySaver(Context context) {
         this.context = context;
